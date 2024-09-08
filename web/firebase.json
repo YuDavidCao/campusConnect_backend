@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "campus-connect-helper",
+    "public": "web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
