@@ -1,6 +1,6 @@
 import flask
 from flask import Flask
-from flask_socketio import SocketIO, emit, send 
+from flask_socketio import SocketIO, emit, send
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import email_service
@@ -22,6 +22,45 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 password_reset_datastore = {}
+
+#----------------- Socket Events -----------------#
+
+def student_listener_callback(doc_snapshot, changes, read_time):
+    print("Student data changed")
+    temp_student = []
+    for doc in doc_snapshot:
+        temp_student.append(doc.to_dict())
+    socketio.emit('student_data', temp_student)
+    
+def volunteer_listener_callback(doc_snapshot, changes, read_time):
+    print("Volunteer data changed")
+    temp_volunteer = []
+    for doc in doc_snapshot:
+        temp_volunteer.append(doc.to_dict())
+    socketio.emit('volunteer_data', json.dumps(temp_volunteer))
+
+@socketio.on('listen_student')
+def handle_connect():
+    print("Client connected - student")
+    send({'volunteer_data', "v1"})
+
+@socketio.on('listen_volunteer')
+def handle_connect():
+    print("Client connected - volunteer")
+    send({'student_data', "s2"})
+
+student_listener_callback = db.collection('SCIE-Students').on_snapshot(student_listener_callback)
+volunteer_listener_callback = db.collection('Volunteer').on_snapshot(volunteer_listener_callback)
+
+@socketio.on('connect')
+def handle_disconnect():
+    print("Client connected")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Client disconnected")
+    
+#--------------- Socket Events Ends --------------#
 
 @app.route('/')
 def hello_world():
@@ -52,7 +91,8 @@ def signin():
     except Exception as e:
         return flask.jsonify({"error": str(e)}), 400
     
-@app.route('/sendParticipageMessage', methods=['POST'])
+# tested
+@app.route('/sendParticipateMessage', methods=['POST'])
 def sendParticipateMessage():
     data = flask.request.json
     docId = data['docId']
@@ -64,6 +104,7 @@ def sendParticipateMessage():
     firestore_service.sendParticipateMessage(docId, creatorId, name, eventName, millisecondFromEpoch, userId)
     return 'Message sent successfully', 200
 
+# tested
 @app.route('/sendQuitMessage', methods=['POST'])
 def sendQuitMessage():
     data = flask.request.json
@@ -76,6 +117,7 @@ def sendQuitMessage():
     firestore_service.sendQuitMessage(docId, creatorId, name, eventName, millisecondFromEpoch, userId)
     return 'Message sent successfully', 200
 
+# tested
 @app.route('/participate', methods=['POST'])
 def participate():
     data = flask.request.json
@@ -86,6 +128,7 @@ def participate():
     firestore_service.participate(docId, uid, millisecondSinceEpoch, volunteer)
     return 'Participation successful', 200
 
+# tested
 @app.route('/quitEvent', methods=['POST'])
 def quitEvent():
     data = flask.request.json
@@ -96,6 +139,7 @@ def quitEvent():
     firestore_service.quitEvent(docId, uid, millisecondSinceEpoch, volunteer)
     return 'Quit successful', 200
 
+# tested
 @app.route('/storeVolunteerEvent', methods=['POST'])
 def storeVolunteerEvent():
     data = flask.request.json
@@ -120,9 +164,11 @@ def ifStarred():
     uid = data['uid']
     return flask.jsonify({"ifStarred": firestore_service.ifStarred(docId, uid)}), 200
 
-@app.route('/getVolunteerEvent', methods=['GET'])
+# tested
+@app.route('/getVolunteerEvent', methods=['POST'])
 def getVolunteerEvent():
-    docId = flask.request.args.get('docId')
+    data = flask.request.json
+    docId = data['docId']
     return flask.jsonify(firestore_service.getVolunteerEvent(docId)), 200
 
 # tested
@@ -143,17 +189,21 @@ def starVolunteerEventOnFirebase():
     firestore_service.starVolunteerEventOnFirebase(docId, uid)
     return 'Event starred successfully', 200
 
-@app.route('/getUserInfo', methods=['GET'])
+# tested
+@app.route('/getUserInfo', methods=['POST'])
 def getUserInfo():
-    uid = flask.request.args.get('uid')
+    data = flask.request.json
+    uid = data['uid']
     return flask.jsonify(firestore_service.getUserInfo(uid)), 200
 
-#TODO -> duplicate with getUserInfo
-@app.route('/getStudentInfo', methods=['GET'])
+# tested
+@app.route('/getStudentInfo', methods=['POST'])
 def getStudentInfo():
-    docId = flask.request.args.get('docId')
+    data = flask.request.json
+    docId = data['docId']
     return flask.jsonify(firestore_service.getStudentInfo(docId)), 200
 
+# tested
 @app.route('/setUserInfo', methods=['POST'])
 def setUserInfo():
     data = flask.request.json
@@ -162,11 +212,14 @@ def setUserInfo():
     firestore_service.setUserInfo(uid, userInfo)
     return 'User info set successfully', 200
 
-@app.route('/ifStudentNumberUnique', methods=['GET'])
+# tested
+@app.route('/ifStudentNumberUnique', methods=['POST'])
 def ifStudentNumberUnique():
-    studentNumber = int(flask.request.args.get('studentNumber'))
+    data = flask.request.json
+    studentNumber = int(data['studentNumber'])
     return flask.jsonify({"ifStudentNumberUnique": firestore_service.ifStudentNumberUnique(studentNumber)}), 200
 
+# tested
 @app.route('/recordApproveStudent', methods=['POST'])
 def recordApproveStudent():
     data = flask.request.json
@@ -176,12 +229,16 @@ def recordApproveStudent():
     firestore_service.recordApproveStudent(approved, participants, docId)
     return 'Approval recorded successfully', 200
 
+# tested
 @app.route('/deleteAccount', methods=['POST'])
 def deleteAccount():
     data = flask.request.json
     uid = data['uid']
-    firestore_service.deleteAccount(uid)
-    return 'Account deleted successfully', 200
+    success = firestore_service.deleteAccount(uid)
+    if (success):
+        return 'Account deleted successfully', 200
+    else:
+        return 'Account deletion failed', 400
 
 @app.route('/resetPassword', methods=['POST'])
 def resetPassword():
@@ -257,4 +314,4 @@ def sendTestEmail():
     return 'Test email sent successfully', 200
     
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

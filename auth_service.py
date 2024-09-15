@@ -2,6 +2,7 @@ from firebase_admin import auth
 import email_service
 import requests
 
+from env import FIREBASE_API_KEY
 
 def create_user_with_email_and_password(email: str, password: str):
     try:

@@ -49,7 +49,7 @@ def participate(
     if (studentInfo == None): return
     sendParticipateMessage(
         docId,
-        volunteer.creatorId,
+        volunteer.creatorUid,
         studentInfo["username"],
         volunteer.eventName,
         millisecondSinceEpoch,
@@ -70,7 +70,7 @@ def quitEvent(
     if (studentInfo == None): return
     sendQuitMessage(
         docId,
-        volunteer.creatorId,
+        volunteer.creatorUid,
         studentInfo["username"],
         volunteer.eventName,
         millisecondSinceEpoch,
@@ -98,7 +98,7 @@ def starVolunteerEventOnFirebase(docId: str, uid: str) -> None:
     app.db.collection(studentCollection).document(uid).update({
         "starred": firestore.ArrayUnion([docId])},
     )
-    
+
 def getUserInfo(uid: str) -> dict:
     return app.db.collection(studentCollection).document(uid).get().to_dict()
 
@@ -110,13 +110,13 @@ def getStudentInfo(docId: str) -> dict:
 
 def setUserInfo(uid: str, userInfo: dict) -> bool:
     try:
-        app.db.collection(studentCollection).document(uid).set(userInfo)
+        app.db.collection(studentCollection).document(uid).set(userInfo, merge=True)
         return True
     except:
         return False
-    
+
 def ifStudentNumberUnique(studentNumber: int) -> bool:
-    return app.db.collection(studentCollection).where("studentNumber", "==", studentNumber).get().empty
+    return len(app.db.collection(studentCollection).where("studentNumber", "==", studentNumber).get()) == 0
 
 def recordApproveStudent(
         approved: list[bool],
@@ -145,11 +145,15 @@ def recordApproveStudent(
             app.db.collection(studentCollection).document(disapprovedStudents[i]),
             {"disapproved": firestore.ArrayUnion([docId])}
         )
+    batch.commit()
     
 def deleteAccount(
         uid: str
     ) -> bool:
     try:
+        docs = app.db.collection(studentCollection).document(uid).collection("Messages").get()
+        for doc in docs:
+            app.db.collection(studentCollection).document(uid).collection("Messages").document(doc.id).delete()
         app.db.collection(studentCollection).document(uid).delete()
         auth.delete_user(uid)
         return True

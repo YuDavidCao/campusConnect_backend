@@ -2,7 +2,9 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import uuid 
+import uuid
+
+from env import password
 
 def send_test_email(receiver_email: str):
     sender_email = "yu.cao20041208@gmail.com"
@@ -20,7 +22,6 @@ def send_test_email(receiver_email: str):
 
     smtp_server = "smtp.gmail.com"
     port = 587  # For TLS
-    password = "ssct utue appt wwfd"
 
     server = smtplib.SMTP(smtp_server, port)
     try:
@@ -52,7 +53,6 @@ def send_password_reset_email(receiver_email: str, uid: str):
     Thank you,
     CampusConnect Team
     """
-
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = receiver_email
@@ -61,8 +61,6 @@ def send_password_reset_email(receiver_email: str, uid: str):
 
     smtp_server = "smtp.gmail.com"
     port = 587  # For TLS
-
-
     server = smtplib.SMTP(smtp_server, port)
     try:
         server.starttls()
